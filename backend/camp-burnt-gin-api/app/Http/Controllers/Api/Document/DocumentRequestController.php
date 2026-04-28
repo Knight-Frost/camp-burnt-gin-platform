@@ -629,10 +629,26 @@ class DocumentRequestController extends Controller
     {
         $this->authorize('viewAny', DocumentRequest::class);
 
+        /** @var \App\Models\User $user */
+        $user = auth()->user();
+
+        // Collect all camper IDs that belong to this applicant so requests
+        // linked only via camper_id (no direct applicant_id FK) are included.
+        $camperIds = $user->campers()->pluck('campers.id');
+
         $requests = DocumentRequest::with('requestedByAdmin', 'camper')
-            ->where('applicant_id', auth()->id())
+            ->where(function ($q) use ($user, $camperIds) {
+                $q->where('applicant_id', $user->id)
+                  ->orWhere(function ($inner) use ($camperIds) {
+                      // Catch requests linked only through the camper relationship
+                      // (e.g. admin created request without explicitly setting applicant_id).
+                      $inner->whereIn('camper_id', $camperIds)
+                            ->whereNull('applicant_id');
+                  });
+            })
             ->latest()
-            ->get();
+            ->get()
+            ->unique('id');
 
         return response()->json(
             $requests->map(fn ($r) => $this->format($r, false))->values()
@@ -640,7 +656,11 @@ class DocumentRequestController extends Controller
     }
 
     /**
-     * Applicant: upload a document for an assigned request.
+     * Applicant: upload a document for an assigned request (step 1 of 2).
+     *
+     * Stores the file on disk and advances status to Uploaded. Does NOT notify
+     * staff yet. The applicant must click Submit (step 2) to send for review.
+     * This allows the applicant to verify their file before committing it.
      *
      * POST /api/applicant/document-requests/{id}/upload
      */
@@ -648,15 +668,11 @@ class DocumentRequestController extends Controller
     {
         $this->authorize('upload', $documentRequest);
 
-        // Verify this request belongs to the authenticated applicant
         abort_unless(auth()->id() === $documentRequest->applicant_id, 403);
-        abort_unless($documentRequest->canUpload(), 403, 'This request cannot accept uploads in its current status.');
+        abort_unless($documentRequest->canUpload(), 422, 'This request cannot accept uploads in its current status.');
 
         // ── Deadline Enforcement ───────────────────────────────────────────────
-        // Initialize to null — only set if the deadline is in soft-enforcement and overdue.
         $lateWarning = null;
-
-        // Resolve the session from the linked application (if present).
         $sessionId = $documentRequest->application?->camp_session_id;
 
         if ($sessionId) {
@@ -667,8 +683,6 @@ class DocumentRequestController extends Controller
             );
 
             if ($enforcement['blocked']) {
-                // Hard enforcement: return HTTP 422 to block the upload entirely.
-                // Admins can unblock via POST /api/deadlines/{id}/complete or extend.
                 return response()->json([
                     'message' => 'Upload blocked: the deadline for this document has passed.',
                     'blocked_by' => $enforcement['deadline'],
@@ -676,8 +690,6 @@ class DocumentRequestController extends Controller
                 ], 422);
             }
 
-            // Soft enforcement: allow the upload but flag it as late.
-            // The response includes a warning the applicant and admin can see.
             if ($enforcement['warned']) {
                 $lateWarning = [
                     'submitted_late' => true,
@@ -691,15 +703,15 @@ class DocumentRequestController extends Controller
             'file' => ['required', 'file', 'mimes:pdf,jpg,jpeg,png,docx', 'max:10240'],
         ]);
 
-        // If a previously uploaded file exists, delete it before saving the new one
+        // Replace any previously staged file
         if ($documentRequest->uploaded_document_path &&
             Storage::disk('local')->exists($documentRequest->uploaded_document_path)) {
             Storage::disk('local')->delete($documentRequest->uploaded_document_path);
         }
 
-        // FileUploadService derives extension from detected MIME type — never from client filename
         $stored = $this->fileUpload->store($request->file('file'), 'document-requests/uploads');
 
+        // Advance to Uploaded: file is stored, not yet submitted for review.
         $documentRequest->update([
             'status' => DocumentRequestStatus::Uploaded,
             'uploaded_document_path' => $stored['path'],
@@ -709,24 +721,56 @@ class DocumentRequestController extends Controller
             'rejection_reason' => null,
         ]);
 
-        // Update inbox thread to reflect submission
+        $documentRequest->load('requestedByAdmin', 'camper');
+
+        $responseData = $this->format($documentRequest, false);
+
+        if (! empty($lateWarning)) {
+            $responseData['warning'] = $lateWarning;
+        }
+
+        return response()->json($responseData);
+    }
+
+    /**
+     * Applicant: submit an uploaded document for staff review (step 2 of 2).
+     *
+     * Transitions status from Uploaded → UnderReview and notifies the requesting
+     * admin. Must be called after applicantUpload(). Rejects if no file exists.
+     *
+     * POST /api/applicant/document-requests/{id}/submit
+     */
+    public function applicantSubmit(Request $request, DocumentRequest $documentRequest): JsonResponse
+    {
+        $this->authorize('upload', $documentRequest);
+
+        abort_unless(auth()->id() === $documentRequest->applicant_id, 403);
+        abort_unless(
+            $documentRequest->status === DocumentRequestStatus::Uploaded,
+            422,
+            'Document must be in uploaded state before submitting for review. Please upload a file first.'
+        );
+
+        $documentRequest->update([
+            'status' => DocumentRequestStatus::UnderReview,
+        ]);
+
         $this->updateConversationStatus(
             $documentRequest,
             'Document Submitted — Awaiting Review',
             '<p>The document <strong>'.e($documentRequest->document_type).'</strong> has been submitted and is awaiting review by camp staff. You will be notified once a decision has been made.</p>'
         );
 
-        // Notify the requesting admin that a document has been uploaded
         $admin = $documentRequest->requestedByAdmin;
         if ($admin) {
             $applicantName = auth()->user()->name;
             $this->notifications->notify(
                 recipient: $admin,
                 eventType: 'document.uploaded',
-                subject: 'Document Uploaded: '.$documentRequest->document_type,
+                subject: 'Document Submitted for Review: '.$documentRequest->document_type,
                 body: '<p><strong>Applicant:</strong> '.e($applicantName).'</p>'
-                           .'<p><strong>Document:</strong> '.e($documentRequest->document_type).'</p>'
-                           .'<p>Status: Ready for Review. Log in to review and approve or reject the document.</p>',
+                    .'<p><strong>Document:</strong> '.e($documentRequest->document_type).'</p>'
+                    .'<p>Status: Ready for Review. Log in to approve or reject the document.</p>',
                 relatedType: DocumentRequest::class,
                 relatedId: $documentRequest->id,
             );
@@ -734,14 +778,12 @@ class DocumentRequestController extends Controller
 
         $documentRequest->load('requestedByAdmin', 'camper');
 
-        $responseData = $this->format($documentRequest, false);
+        \App\Models\DocumentReviewEvent::recordSentForRequest(
+            $documentRequest,
+            auth()->user()
+        );
 
-        // Attach late-submission warning if the deadline was in soft mode and is overdue
-        if (! empty($lateWarning)) {
-            $responseData['warning'] = $lateWarning;
-        }
-
-        return response()->json($responseData);
+        return response()->json($this->format($documentRequest, false));
     }
 
     /**

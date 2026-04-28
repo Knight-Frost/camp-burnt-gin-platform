@@ -441,6 +441,8 @@ Route::middleware(['auth:sanctum', 'verified', 'throttle:api'])->group(function 
         Route::get('/applicant/document-requests', [DocumentRequestController::class, 'applicantIndex']);
         Route::post('/applicant/document-requests/{documentRequest}/upload', [DocumentRequestController::class, 'applicantUpload'])
             ->middleware('throttle:uploads');
+        Route::post('/applicant/document-requests/{documentRequest}/submit', [DocumentRequestController::class, 'applicantSubmit'])
+            ->middleware('throttle:uploads');
         Route::get('/applicant/document-requests/{documentRequest}/download', [DocumentRequestController::class, 'applicantDownload'])
             ->middleware('throttle:sensitive');
     });

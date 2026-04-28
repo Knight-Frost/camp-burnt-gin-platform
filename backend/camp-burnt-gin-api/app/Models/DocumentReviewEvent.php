@@ -213,6 +213,24 @@ class DocumentReviewEvent extends Model
     }
 
     /**
+     * Record that an applicant submitted a file for a standalone DocumentRequest
+     * (no linked Document row; file stored directly on document_requests).
+     */
+    public static function recordSentForRequest(
+        DocumentRequest $request,
+        User $uploader
+    ): self {
+        return self::create([
+            'document_id' => null,
+            'document_request_id' => $request->id,
+            'application_id' => $request->application_id,
+            'camper_id' => $request->camper_id,
+            'action' => DocumentReviewAction::Sent,
+            'performed_by' => $uploader->id,
+        ]);
+    }
+
+    /**
      * Record that an overdue detection job marked this request as overdue.
      * performed_by is null — system-generated event.
      *

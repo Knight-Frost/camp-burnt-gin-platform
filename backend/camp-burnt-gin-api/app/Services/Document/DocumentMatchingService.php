@@ -54,6 +54,29 @@ class DocumentMatchingService
     }
 
     /**
+     * Find any non-terminal (non-approved) request for the same camper + document type.
+     *
+     * Used as a fallback in DocumentReviewService::approve() when the Document has
+     * no direct document_request_id FK. This handles the case where the applicant
+     * uploaded via the DocumentRequest direct path while the admin approves a separate
+     * Document in the general documents table. The two tracks must be reconciled.
+     */
+    public function findNonTerminalRequest(Document $document): ?DocumentRequest
+    {
+        $camperId = $this->resolveCamperId($document);
+        if ($camperId === null || $document->document_type === null) {
+            return null;
+        }
+
+        return DocumentRequest::where('camper_id', $camperId)
+            ->where('document_type', $document->document_type)
+            ->where('status', '!=', DocumentRequestStatus::Approved->value)
+            ->whereNull('deleted_at')
+            ->oldest()
+            ->first();
+    }
+
+    /**
      * Find the oldest open (unresolved) request for a camper + type combination.
      *
      * "Open" means the request is waiting for an upload or was previously rejected

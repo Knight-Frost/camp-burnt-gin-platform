@@ -43,6 +43,7 @@ import {
   submitCompletedDocument,
   getDocumentRequests,
   uploadDocumentRequest,
+  submitDocumentRequest,
   getCampers,
   type Document,
   type RequiredDocument,
@@ -482,15 +483,16 @@ function UploadArea({
 // Unified task system — normalizes DocumentRequestRecord + RequiredDocument
 // ---------------------------------------------------------------------------
 
-// Four states a task can be in from the applicant's perspective
-type TaskStatus = 'not_started' | 'rejected' | 'waiting' | 'completed';
+// Five states a task can be in from the applicant's perspective
+type TaskStatus = 'not_started' | 'rejected' | 'uploaded' | 'waiting' | 'completed';
 
 // Sort order: most urgent first
 const TASK_STATUS_ORDER: Record<TaskStatus, number> = {
   not_started: 0,
   rejected: 1,
-  waiting: 2,
-  completed: 3,
+  uploaded: 2,    // file on server, awaiting applicant submit action
+  waiting: 3,
+  completed: 4,
 };
 
 interface UnifiedTask {
@@ -507,26 +509,34 @@ interface UnifiedTask {
   rejectionReason: string | null;
   // Filename of an already-uploaded response (shown in waiting/completed states)
   uploadedFileName: string | null;
-  // Matched Document from the uploads list — enables the inline View button
+  // ISO timestamp of when the applicant uploaded their response file
+  uploadedAt: string | null;
+  // Matched Document from the uploads list: enables the inline View button
   linkedDoc: Document | null;
   // Whether this task has an admin-provided blank form to download first
   canDownload: boolean;
   // Source discriminator for routing submit calls to the right API
   source: 'doc_request' | 'required_doc';
   sourceId: number;
+  // Camper display name: only populated when the account has 2+ campers
+  camperName: string | null;
 }
 
 // Map a DocumentRequestRecord → UnifiedTask
-function fromDocRequest(req: DocumentRequestRecord, documents: Document[]): UnifiedTask {
+// camperName: pre-resolved display name for the linked camper (null for single-camper accounts)
+function fromDocRequest(req: DocumentRequestRecord, documents: Document[], camperName: string | null = null): UnifiedTask {
   const status: TaskStatus =
     req.status === 'approved'                               ? 'completed'   :
     req.status === 'rejected'                               ? 'rejected'    :
     req.status === 'awaiting_upload' || req.status === 'overdue' ? 'not_started' :
-    'waiting'; // uploaded | scanning | under_review
+    req.status === 'uploaded'                               ? 'uploaded'    :
+    'waiting'; // scanning | under_review
 
-  // Best-effort match: find a user document whose type matches the request label
+  // Scope by camper_id to prevent cross-camper document leakage in multi-camper families
   const linkedDoc = documents.find(
-    (d) => d.document_type.toLowerCase() === req.document_type.toLowerCase()
+    (d) =>
+      d.document_type.toLowerCase() === req.document_type.toLowerCase() &&
+      (d.camper_id === req.camper_id || d.camper_id == null),
   ) ?? null;
 
   return {
@@ -541,10 +551,12 @@ function fromDocRequest(req: DocumentRequestRecord, documents: Document[]): Unif
     requestedAt: req.created_at,
     rejectionReason: req.rejection_reason,
     uploadedFileName: req.uploaded_file_name,
+    uploadedAt: req.uploaded_at,
     linkedDoc,
     canDownload: false,
     source: 'doc_request',
     sourceId: req.id,
+    camperName,
   };
 }
 
@@ -567,10 +579,12 @@ function fromRequiredDoc(doc: RequiredDocument, _documents: Document[]): Unified
     requestedAt: doc.created_at,
     rejectionReason: null,
     uploadedFileName: doc.submitted_file_name ?? null,
+    uploadedAt: null,
     linkedDoc: null,
     canDownload: true, // admin provides a blank form via download_url
     source: 'required_doc',
     sourceId: doc.id,
+    camperName: null,
   };
 }
 
@@ -583,35 +597,33 @@ function fromRequiredDoc(doc: RequiredDocument, _documents: Document[]): Unified
 
 interface TaskCardProps {
   task: UnifiedTask;
-  stagedFile: File | null;
-  submitting: boolean;
-  onFileSelected: (file: File) => void;
-  onClearStaged: () => void;
-  onSubmit: () => void;
+  stagedFile: File | null;      // local file selected but not yet uploaded (in-flight visual only)
+  uploading: boolean;           // upload API call in progress
+  submitting: boolean;          // submit API call in progress
+  onFileSelected: (file: File) => void;  // triggers immediate upload
+  onSubmit: () => void;         // submits already-uploaded file for review
   onDownload?: () => void;
   onViewDoc: (doc: Document) => void;
-  // View the already-uploaded file for this task (waiting state, private storage)
   onViewUploaded?: () => void;
   viewingUploaded?: boolean;
 }
 
 function TaskCard({
-  task, stagedFile, submitting, onFileSelected, onClearStaged, onSubmit, onDownload, onViewDoc,
+  task, stagedFile, uploading, submitting, onFileSelected, onSubmit, onDownload, onViewDoc,
   onViewUploaded, viewingUploaded,
 }: TaskCardProps) {
-  // Each card manages its own hidden file input — no external ref map needed
   const inputRef = useRef<HTMLInputElement>(null);
   const { status } = task;
-  const needsAction = status === 'not_started' || status === 'rejected';
+  const needsUpload = status === 'not_started' || status === 'rejected';
+  const needsSubmit = status === 'uploaded';
 
-  // All visual tokens derived from status in one place
   const v = {
     not_started: {
       strip: '#f59e0b',
       iconBg: 'rgba(245,158,11,0.12)',
       iconColor: '#f59e0b',
-      badgeBg: 'rgba(245,158,11,0.12)',
-      badgeColor: '#b45309',
+      badgeBg: 'rgba(245,158,11,0.20)',
+      badgeColor: '#92400e',
       label: 'Upload Required',
       border: 'rgba(245,158,11,0.45)',
       cardBg: 'rgba(253,230,138,0.04)',
@@ -625,6 +637,16 @@ function TaskCard({
       label: 'Action Required',
       border: 'rgba(239,68,68,0.45)',
       cardBg: 'rgba(254,202,202,0.06)',
+    },
+    uploaded: {
+      strip: '#10b981',
+      iconBg: 'rgba(16,185,129,0.12)',
+      iconColor: '#10b981',
+      badgeBg: 'rgba(16,185,129,0.12)',
+      badgeColor: '#065f46',
+      label: 'Ready to Submit',
+      border: 'rgba(16,185,129,0.40)',
+      cardBg: 'rgba(209,250,229,0.06)',
     },
     waiting: {
       strip: null as string | null,
@@ -651,6 +673,7 @@ function TaskCard({
   const StateIcon = {
     not_started: Upload,
     rejected: AlertTriangle,
+    uploaded: CheckCircle,
     waiting: Clock,
     completed: CheckCircle,
   }[status];
@@ -702,13 +725,15 @@ function TaskCard({
               </div>
               {task.requestedBy && (
                 <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>
-                  Requested by {task.requestedBy}
+                  Requested by camp staff
                   {task.requestedAt && ` · ${format(new Date(task.requestedAt), 'MMM d, yyyy')}`}
+                  {task.camperName && ` · For ${task.camperName}`}
                 </p>
               )}
               {!task.requestedBy && task.requestedAt && (
                 <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>
                   Sent {format(new Date(task.requestedAt), 'MMM d, yyyy')}
+                  {task.camperName && ` · For ${task.camperName}`}
                 </p>
               )}
             </div>
@@ -752,116 +777,159 @@ function TaskCard({
         )}
 
         {/* ── ACTION ZONE ────────────────────────────────────────────── */}
-        {/* Separated from metadata by a divider to signal interactivity */}
         <div className="pt-3.5 border-t flex flex-col gap-2" style={{ borderColor: 'var(--border)' }}>
 
-          {/* NOT STARTED / REJECTED: always show Upload + Submit (Submit disabled until file staged) */}
-          {needsAction && (
-            <div className="flex items-center gap-2 flex-wrap">
-              {task.canDownload && onDownload && (
+          {/* NOT STARTED / REJECTED: Upload Document (triggers real upload) + Submit (disabled) */}
+          {needsUpload && (
+            <div className="flex flex-col gap-2">
+              {uploading && stagedFile && (
+                <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
+                  Uploading <strong>{stagedFile.name}</strong>…
+                </p>
+              )}
+              {!uploading && (
+                <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
+                  Upload your file, then click <strong>Submit</strong> to send it to camp staff for review.
+                </p>
+              )}
+              <div className="flex items-center gap-2 flex-wrap">
+                {task.canDownload && onDownload && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={onDownload}
+                    className="flex items-center gap-1.5"
+                  >
+                    <Download className="h-3.5 w-3.5" />
+                    Download Form
+                  </Button>
+                )}
+                {/* Upload Document: opens file picker; onChange triggers the upload API */}
                 <Button
-                  variant="ghost"
+                  variant="primary"
                   size="sm"
-                  onClick={onDownload}
-                  className="flex items-center gap-1.5"
+                  disabled={uploading}
+                  loading={uploading}
+                  onClick={() => inputRef.current?.click()}
+                  className="flex items-center gap-1.5 flex-shrink-0"
                 >
-                  <Download className="h-3.5 w-3.5" />
-                  Download Form
+                  <Upload className="h-3.5 w-3.5" />
+                  Upload Document
                 </Button>
-              )}
-              {/* Staged file pill */}
-              {stagedFile && (
-                <div
-                  className="flex-1 min-w-0 flex items-center gap-2 rounded-xl px-3 py-2.5"
-                  style={{ background: 'var(--dash-bg)', border: '1px solid var(--border)' }}
+                {/* Submit: disabled until upload succeeds and status becomes uploaded */}
+                <Button
+                  variant="primary"
+                  size="sm"
+                  disabled
+                  className="flex items-center gap-1.5 flex-shrink-0"
                 >
-                  <FileText className="h-3.5 w-3.5 flex-shrink-0" style={{ color: 'var(--muted-foreground)' }} />
-                  <span className="text-xs truncate font-medium" style={{ color: 'var(--foreground)' }}>
-                    {stagedFile.name}
-                  </span>
-                </div>
-              )}
-              {/* Upload / Change File button */}
-              <Button
-                variant={stagedFile ? 'ghost' : 'primary'}
-                size="sm"
-                onClick={() => inputRef.current?.click()}
-                className="flex items-center gap-1.5 flex-shrink-0"
-              >
-                <Upload className="h-3.5 w-3.5" />
-                {stagedFile ? 'Change File' : 'Upload Document'}
-              </Button>
-              {/* Submit — always visible; disabled until a file is staged */}
-              <Button
-                variant="primary"
-                size="sm"
-                disabled={!stagedFile || submitting}
-                loading={submitting}
-                onClick={onSubmit}
-                className="flex items-center gap-1.5 flex-shrink-0"
-              >
-                <Send className="h-3.5 w-3.5" />
-                Submit
-              </Button>
-              {/* Clear staged file */}
-              {stagedFile && !submitting && (
-                <button
-                  type="button"
-                  onClick={onClearStaged}
-                  className="p-1.5 rounded-lg hover:bg-[var(--dash-nav-hover-bg)] transition-colors flex-shrink-0"
-                  title="Remove selected file"
-                >
-                  <X className="h-4 w-4" style={{ color: 'var(--muted-foreground)' }} />
-                </button>
-              )}
+                  <Send className="h-3.5 w-3.5" />
+                  Submit
+                </Button>
+              </div>
             </div>
           )}
 
-          {/* WAITING: uploaded filename + "awaiting review" + View uploaded doc */}
-          {status === 'waiting' && (
-            <div className="flex items-center justify-between gap-3 flex-wrap">
-              <div className="flex items-center gap-1.5">
-                {task.uploadedFileName && (
-                  <>
-                    <FileText className="h-3.5 w-3.5 flex-shrink-0" style={{ color: 'var(--muted-foreground)' }} />
-                    <span className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
-                      {task.uploadedFileName}
-                    </span>
-                  </>
-                )}
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="flex items-center gap-1 text-xs" style={{ color: '#1d4ed8' }}>
-                  <Clock className="h-3.5 w-3.5" />
-                  Awaiting review
+          {/* UPLOADED: file confirmed on server; show filename + Change File + Submit (enabled) */}
+          {needsSubmit && (
+            <div className="flex flex-col gap-2">
+              {/* Server-confirmed file pill */}
+              <div
+                className="flex items-center gap-2 rounded-xl px-3 py-2.5"
+                style={{ background: 'var(--dash-bg)', border: '1px solid rgba(16,185,129,0.35)' }}
+              >
+                <FileText className="h-3.5 w-3.5 flex-shrink-0" style={{ color: '#10b981' }} />
+                <span className="text-xs truncate font-medium flex-1" style={{ color: 'var(--foreground)' }}>
+                  {task.uploadedFileName ?? (stagedFile?.name ?? 'File uploaded')}
                 </span>
-                {/* Show View for doc_request tasks using the private download endpoint */}
-                {onViewUploaded && task.uploadedFileName && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    disabled={viewingUploaded}
-                    loading={viewingUploaded}
-                    onClick={onViewUploaded}
-                    className="flex items-center gap-1.5"
-                  >
-                    <Eye className="h-3.5 w-3.5" />
-                    View
-                  </Button>
-                )}
-                {/* Fallback: linkedDoc from documents list (required_doc tasks) */}
-                {!onViewUploaded && task.linkedDoc && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => onViewDoc(task.linkedDoc!)}
-                    className="flex items-center gap-1.5"
-                  >
-                    <Eye className="h-3.5 w-3.5" />
-                    View
-                  </Button>
-                )}
+                <span className="text-xs flex-shrink-0" style={{ color: '#10b981' }}>✓ Uploaded</span>
               </div>
+              <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
+                File saved. Click <strong>Submit</strong> to send it to camp staff for review.
+              </p>
+              <div className="flex items-center gap-2 flex-wrap">
+                {/* Change File: re-uploads, replacing the staged file */}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  disabled={uploading || submitting}
+                  loading={uploading}
+                  onClick={() => inputRef.current?.click()}
+                  className="flex items-center gap-1.5 flex-shrink-0"
+                >
+                  <Upload className="h-3.5 w-3.5" />
+                  Change File
+                </Button>
+                {/* Submit: active now that a file is confirmed on the server */}
+                <Button
+                  variant="primary"
+                  size="sm"
+                  disabled={submitting || uploading}
+                  loading={submitting}
+                  onClick={onSubmit}
+                  className="flex items-center gap-1.5 flex-shrink-0"
+                >
+                  <Send className="h-3.5 w-3.5" />
+                  Submit
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* WAITING: file row + View; badge already says "Under Review", no duplicate label */}
+          {status === 'waiting' && (
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center justify-between gap-3 flex-wrap">
+                <div className="flex items-center gap-1.5 min-w-0">
+                  {task.uploadedFileName && (
+                    <>
+                      <FileText className="h-3.5 w-3.5 flex-shrink-0" style={{ color: 'var(--muted-foreground)' }} />
+                      <span className="text-xs truncate" style={{ color: 'var(--muted-foreground)' }}>
+                        {task.uploadedFileName}
+                      </span>
+                      {task.uploadedAt && (
+                        <span className="text-xs flex-shrink-0" style={{ color: 'var(--muted-foreground)' }}>
+                          · Submitted {format(new Date(task.uploadedAt), 'MMM d, yyyy')}
+                        </span>
+                      )}
+                    </>
+                  )}
+                </div>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  {/* Show View for doc_request tasks using the private download endpoint */}
+                  {onViewUploaded && task.uploadedFileName && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      disabled={viewingUploaded}
+                      loading={viewingUploaded}
+                      onClick={onViewUploaded}
+                      className="flex items-center gap-1.5"
+                    >
+                      <Eye className="h-3.5 w-3.5" />
+                      View
+                    </Button>
+                  )}
+                  {/* Fallback: linkedDoc from documents list (required_doc tasks) */}
+                  {!onViewUploaded && task.linkedDoc && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => onViewDoc(task.linkedDoc!)}
+                      className="flex items-center gap-1.5"
+                    >
+                      <Eye className="h-3.5 w-3.5" />
+                      View
+                    </Button>
+                  )}
+                </div>
+              </div>
+              {/* Wrong-file guidance: backend blocks re-upload while under review (canUpload() = false) */}
+              <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
+                Uploaded the wrong file? Contact camp staff via{' '}
+                <span className="font-medium" style={{ color: 'var(--foreground)' }}>Inbox</span>{' '}
+                to request a correction.
+              </p>
             </div>
           )}
 
@@ -889,12 +957,12 @@ function TaskCard({
         </div>
       </div>
 
-      {/* Hidden file input — lives inside the card, triggered by the Upload button */}
+      {/* Hidden file input; accept matches backend mimes: pdf,jpg,jpeg,png,docx (no .doc, no .webp) */}
       <input
         ref={inputRef}
         type="file"
         className="sr-only"
-        accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+        accept=".pdf,.docx,.jpg,.jpeg,.png"
         onChange={(e) => {
           const f = e.target.files?.[0];
           if (f) onFileSelected(f);
@@ -960,43 +1028,68 @@ export function ApplicantDocumentsPage() {
   // ── My Documents list ─────────────────────────────────────────────────────
 
   // ── Unified task upload state ─────────────────────────────────────────────
-  // Staged files: keyed by UnifiedTask.key ('req-3' or 'rdoc-7')
+  // Staged files: keyed by UnifiedTask.key; only populated while the upload API call is in-flight
   const [stagedTaskFiles,   setStagedTaskFiles]   = useState<Record<string, File>>({});
+  const [uploadingTaskKey,  setUploadingTaskKey]  = useState<string | null>(null);
   const [submittingTaskKey, setSubmittingTaskKey] = useState<string | null>(null);
   // Track which doc_request is being fetched for preview
   const [viewingUploadedId, setViewingUploadedId] = useState<number | null>(null);
 
   // ── Data loading ──────────────────────────────────────────────────────────
+
+  // Full load: shows skeleton. Used on mount and on tab-switch.
   const load = () => {
     setLoading(true);
     Promise.allSettled([getDocuments(), getRequiredDocuments(), getDocumentRequests(), getCampers()])
       .then(([docsResult, reqResult, docReqResult, campersResult]) => {
-        if (docsResult.status === 'fulfilled') setDocuments(docsResult.value);
-        if (reqResult.status === 'fulfilled')   setRequiredDocs(reqResult.value);
-        if (docReqResult.status === 'fulfilled')
-          setDocumentRequests(Array.isArray(docReqResult.value) ? docReqResult.value : []);
-        if (campersResult.status === 'fulfilled') setCampers(campersResult.value);
+        if (docsResult.status === 'fulfilled') {
+          setDocuments(docsResult.value);
+        }
+        if (reqResult.status === 'fulfilled') {
+          setRequiredDocs(reqResult.value);
+        }
+        if (docReqResult.status === 'fulfilled') {
+          const raw = docReqResult.value;
+          setDocumentRequests(Array.isArray(raw) ? raw : []);
+        } else {
+          toast.error(`Could not load document requests: ${(docReqResult.reason as { message?: string })?.message ?? 'Unknown error'}`);
+        }
+        if (campersResult.status === 'fulfilled') {
+          const loadedCampers = campersResult.value;
+          setCampers(loadedCampers);
+          if (loadedCampers.length <= 1) {
+            setActiveCamperId(null);
+          }
+        }
       })
       .finally(() => setLoading(false));
+  };
+
+  // Silent targeted refresh of document requests only: no skeleton, no side-effects.
+  // Called after upload/submit to ensure authoritative server state without racing against
+  // concurrent load() calls or showing a disruptive loading skeleton.
+  const refreshRequests = () => {
+    getDocumentRequests()
+      .then((raw) => setDocumentRequests(Array.isArray(raw) ? raw : []))
+      .catch(() => { /* non-fatal; optimistic update from the API response already applied */ });
   };
 
   useEffect(() => {
     load();
   }, []);
 
-  // Refresh whenever the tab becomes active again. Without this the page
-  // shows stale state when an admin verifies / approves a document in
-  // another tab — the applicant comes back to the page and still sees
-  // "Awaiting review" until they manually refresh.
+  // Refresh when the tab becomes visible again (cross-tab admin action, e.g. approve/reject).
+  // NOTE: We intentionally do NOT listen to window.focus here. The native OS file-picker
+  // dialog returns focus to the window before the file input's onChange fires. If we called
+  // load() on focus, it would race against the in-flight upload POST and overwrite the
+  // optimistic state update with stale server data (status: awaiting_upload).
   useEffect(() => {
     function onVisible() {
       if (document.visibilityState === 'visible') load();
     }
     document.addEventListener('visibilitychange', onVisible);
-    window.addEventListener('focus', load);
     return () => {
       document.removeEventListener('visibilitychange', onVisible);
-      window.removeEventListener('focus', load);
     };
   }, []);
 
@@ -1023,24 +1116,48 @@ export function ApplicantDocumentsPage() {
     }
   }
 
-  // Unified task submit — routes to the correct API based on source
-  async function handleTaskSubmit(task: UnifiedTask) {
-    const file = stagedTaskFiles[task.key];
-    if (!file) return;
-    setSubmittingTaskKey(task.key);
+  // Step 1: upload the selected file to the server.
+  // For doc_request tasks: stores file, sets status→Uploaded (not yet submitted for review).
+  // For required_doc tasks: combined upload+submit in one call (no separate submit step).
+  async function handleTaskUpload(task: UnifiedTask, file: File) {
+    setUploadingTaskKey(task.key);
     try {
       if (task.source === 'doc_request') {
         const updated = await uploadDocumentRequest(task.sourceId, file);
+        // Apply optimistic state immediately from the response, then confirm from server.
         setDocumentRequests((prev) => prev.map((r) => r.id === task.sourceId ? updated : r));
+        toast.success('File uploaded. Click Submit to send it to camp staff.');
+        // Authoritative refresh after upload: ensures state is correct even if a
+        // concurrent load() call (e.g. from visibilitychange) overwrote the optimistic update.
+        refreshRequests();
       } else {
         const updated = await submitCompletedDocument(task.sourceId, file);
         setRequiredDocs((prev) => prev.map((d) => d.id === task.sourceId ? { ...d, ...updated } : d));
+        toast.success('Document submitted to camp staff.');
       }
       setStagedTaskFiles((prev) => { const n = { ...prev }; delete n[task.key]; return n; });
-      toast.success('Document submitted successfully.');
     } catch (err) {
+      setStagedTaskFiles((prev) => { const n = { ...prev }; delete n[task.key]; return n; });
       const msg = (err as { message?: string })?.message;
       toast.error(msg ? `Upload failed: ${msg}` : 'Upload failed. Please try again.');
+    } finally {
+      setUploadingTaskKey(null);
+    }
+  }
+
+  // Step 2: submit an already-uploaded doc_request file for staff review.
+  // Transitions status from Uploaded → UnderReview and notifies staff.
+  async function handleTaskSubmit(task: UnifiedTask) {
+    if (task.source !== 'doc_request') return;
+    setSubmittingTaskKey(task.key);
+    try {
+      const updated = await submitDocumentRequest(task.sourceId);
+      setDocumentRequests((prev) => prev.map((r) => r.id === task.sourceId ? updated : r));
+      toast.success('Document submitted to camp staff for review.');
+      refreshRequests();
+    } catch (err) {
+      const msg = (err as { message?: string })?.message;
+      toast.error(msg ? `Submit failed: ${msg}` : 'Submit failed. Please try again.');
     } finally {
       setSubmittingTaskKey(null);
     }
@@ -1129,12 +1246,15 @@ export function ApplicantDocumentsPage() {
   // id means the merged "All" view. DocumentRequests and Documents have a
   // camper_id we can filter on; RequiredDocuments (admin-provided blank forms)
   // currently have no camper link in the API shape, so they're shown under
-  // every tab — a later enhancement can scope them when the backend surfaces
-  // the id. Matching is explicit `=== activeCamperId` so null-camper rows
-  // (messaging attachments, unscoped uploads) only surface on "All".
+  // every tab. A later enhancement can scope them when the backend surfaces
+  // the id.
+  // Requests and documents with camper_id == null are unscoped (e.g. admin
+  // created with "All campers", or a general applicant-level upload). These
+  // surface on EVERY tab; hiding them on specific tabs made admin-created
+  // requests invisible to applicants who had a camper tab selected.
   const scopedDocumentRequests = activeCamperId === null
     ? documentRequests
-    : documentRequests.filter((r) => r.camper_id === activeCamperId);
+    : documentRequests.filter((r) => r.camper_id === activeCamperId || r.camper_id == null);
   const scopedDocuments = activeCamperId === null
     ? documents
     : documents.filter((d) => d.camper_id === activeCamperId || d.camper_id == null);
@@ -1142,11 +1262,18 @@ export function ApplicantDocumentsPage() {
   // ── Unified task list ─────────────────────────────────────────────────────
   // Merge both data sources, sort urgently-needed tasks to the top.
   const unifiedTasks: UnifiedTask[] = [
-    ...scopedDocumentRequests.map((r) => fromDocRequest(r, documents)),
+    ...scopedDocumentRequests.map((r) => {
+      const camper = campers.length >= 2 ? campers.find((c) => c.id === r.camper_id) : undefined;
+      const camperName = camper ? `${camper.first_name} ${camper.last_name}`.trim() : null;
+      return fromDocRequest(r, documents, camperName);
+    }),
     ...requiredDocs.map((d) => fromRequiredDoc(d, documents)),
   ].sort((a, b) => TASK_STATUS_ORDER[a.status] - TASK_STATUS_ORDER[b.status]);
 
   const completedTaskCount = unifiedTasks.filter((t) => t.status === 'completed').length;
+  const uploadedTaskCount  = unifiedTasks.filter((t) => t.status === 'uploaded').length;
+  const waitingTaskCount   = unifiedTasks.filter((t) => t.status === 'waiting').length;
+  const pendingTaskCount   = unifiedTasks.filter((t) => t.status === 'not_started' || t.status === 'rejected').length;
   const totalTaskCount     = unifiedTasks.length;
   const allComplete        = totalTaskCount > 0 && completedTaskCount === totalTaskCount;
 
@@ -1156,7 +1283,8 @@ export function ApplicantDocumentsPage() {
   // their current admin decision — they no longer "drop off" like they did
   // when there was only a Ready-to-Send list. Drafts (sent_at null) go in the
   // Additional section below.
-  const submittedDocuments = scopedDocuments.filter((d) => !!d.sent_at);
+  // Include both inbox-sent docs (sent_at) and directly-submitted supplementary uploads (submitted_at)
+  const submittedDocuments = scopedDocuments.filter((d) => !!d.sent_at || !!d.submitted_at);
 
   // Derive the 8-state UI status for a submitted doc. DocumentRequest matching
   // is best-effort: if this upload came from an admin ask, surface the request
@@ -1202,7 +1330,7 @@ export function ApplicantDocumentsPage() {
             My Documents
           </h2>
           <p className="text-sm mt-1" style={{ color: 'var(--muted-foreground)' }}>
-            Respond to any documents camp staff has requested from you, and upload optional supporting files here. Your application's required documents (immunization record, insurance card, medical form) live inside the application form itself.
+            If camp staff has requested documents from you, upload and submit them here. You can also send optional supporting files to staff using the area below.
           </p>
         </div>
 
@@ -1323,20 +1451,26 @@ export function ApplicantDocumentsPage() {
                     <span className="text-xs font-semibold" style={{ color: 'var(--foreground)' }}>
                       {allComplete
                         ? 'All documents submitted'
-                        : `${totalTaskCount - completedTaskCount} document${totalTaskCount - completedTaskCount !== 1 ? 's' : ''} still needed`}
+                        : (() => {
+                            const parts: string[] = [];
+                            if (waitingTaskCount > 0) parts.push(`${waitingTaskCount} awaiting review`);
+                            if (uploadedTaskCount > 0) parts.push(`${uploadedTaskCount} ready to submit`);
+                            if (pendingTaskCount > 0)  parts.push(`${pendingTaskCount} still needed`);
+                            return parts.join(' · ') || 'No documents required';
+                          })()}
                     </span>
                     <span
                       className="text-xs font-semibold"
                       style={{ color: allComplete ? '#166534' : '#b45309' }}
                     >
-                      {completedTaskCount} / {totalTaskCount}
+                      {completedTaskCount + uploadedTaskCount + waitingTaskCount} / {totalTaskCount}
                     </span>
                   </div>
                   <div className="w-full h-2 rounded-full" style={{ background: 'var(--border)' }}>
                     <div
                       className="h-2 rounded-full transition-all duration-500"
                       style={{
-                        width: `${(completedTaskCount / totalTaskCount) * 100}%`,
+                        width: `${((completedTaskCount + uploadedTaskCount + waitingTaskCount) / totalTaskCount) * 100}%`,
                         background: allComplete ? '#166534' : 'var(--ember-orange)',
                       }}
                     />
@@ -1371,17 +1505,12 @@ export function ApplicantDocumentsPage() {
                         key={task.key}
                         task={task}
                         stagedFile={stagedTaskFiles[task.key] ?? null}
+                        uploading={uploadingTaskKey === task.key}
                         submitting={submittingTaskKey === task.key}
-                        onFileSelected={(file) =>
-                          setStagedTaskFiles((prev) => ({ ...prev, [task.key]: file }))
-                        }
-                        onClearStaged={() =>
-                          setStagedTaskFiles((prev) => {
-                            const n = { ...prev };
-                            delete n[task.key];
-                            return n;
-                          })
-                        }
+                        onFileSelected={(file) => {
+                          setStagedTaskFiles((prev) => ({ ...prev, [task.key]: file }));
+                          void handleTaskUpload(task, file);
+                        }}
                         onSubmit={() => void handleTaskSubmit(task)}
                         onDownload={task.canDownload ? () => void handleTaskDownload(task) : undefined}
                         onViewDoc={(doc) => setPreview(doc)}

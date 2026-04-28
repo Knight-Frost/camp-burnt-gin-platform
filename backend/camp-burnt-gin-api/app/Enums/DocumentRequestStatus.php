@@ -45,7 +45,8 @@ enum DocumentRequestStatus: string
     public function canUpload(): bool
     {
         return match ($this) {
-            self::AwaitingUpload, self::Rejected, self::Overdue => true,
+            // Uploaded is included so the applicant can replace a staged file before submitting.
+            self::AwaitingUpload, self::Uploaded, self::Rejected, self::Overdue => true,
             default => false,
         };
     }

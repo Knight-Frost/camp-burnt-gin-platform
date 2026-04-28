@@ -2848,7 +2848,7 @@ export function AdminDocumentsPage() {
                         overflowItems.push({
                           label: t('admin_extra.menu_open_review','Open Review Page'),
                           icon: ExternalLink,
-                          onClick: () => navigate(isSuperAdmin ? ROUTES.SUPER_ADMIN_APPLICATION_EDIT(req.application_id!) : ROUTES.ADMIN_APPLICATION_DETAIL(req.application_id!)),
+                          onClick: () => navigate(isSuperAdmin ? ROUTES.SUPER_ADMIN_APPLICATION_DETAIL(req.application_id!) : ROUTES.ADMIN_APPLICATION_DETAIL(req.application_id!)),
                         });
                       }
                       if (canRemind(req.status)) {

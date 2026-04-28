@@ -1066,7 +1066,7 @@ export async function submitCompletedDocument(id: number, file: File): Promise<R
 
 export type DocumentRequestStatus =
   | 'awaiting_upload'
-  | 'uploaded'
+  | 'uploaded'        // file stored on server, not yet submitted for review
   | 'scanning'
   | 'under_review'
   | 'approved'
@@ -1094,7 +1094,9 @@ export interface DocumentRequestRecord {
 
 export async function getDocumentRequests(): Promise<DocumentRequestRecord[]> {
   const { data } = await axiosInstance.get('/applicant/document-requests');
-  return data;
+  // Backend returns a plain JSON array; handle the wrapped { data: [] } shape
+  // defensively in case a middleware or future refactor adds an envelope.
+  return Array.isArray(data) ? data : ((data as { data?: DocumentRequestRecord[] })?.data ?? []);
 }
 
 export async function uploadDocumentRequest(id: number, file: File): Promise<DocumentRequestRecord> {
@@ -1103,6 +1105,12 @@ export async function uploadDocumentRequest(id: number, file: File): Promise<Doc
   const { data } = await axiosInstance.post(`/applicant/document-requests/${id}/upload`, formData, {
     headers: { 'Content-Type': undefined },
   });
+  return data;
+}
+
+/** Step 2: submit an already-uploaded document for staff review. */
+export async function submitDocumentRequest(id: number): Promise<DocumentRequestRecord> {
+  const { data } = await axiosInstance.post(`/applicant/document-requests/${id}/submit`);
   return data;
 }
 

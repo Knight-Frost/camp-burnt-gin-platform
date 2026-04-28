@@ -55,7 +55,11 @@ class DocumentReviewService
             }
 
             // Advance the linked request to Approved terminal state.
-            $request = $document->documentRequest;
+            // Fallback: if the Document has no direct FK (uploaded via a separate track
+            // from the DocumentRequest direct-upload path), find any non-terminal request
+            // for the same camper + type so approval reconciles both tracks.
+            $request = $document->documentRequest
+                ?? $this->matcher->findNonTerminalRequest($document);
             $request?->markApproved($admin);
 
             // Append to the review event timeline.
