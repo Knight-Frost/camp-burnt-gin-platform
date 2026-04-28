@@ -17,7 +17,7 @@
  *   - SendDocumentModal: notify admin via inbox conversation thread.
  */
 
-import { useEffect, useRef, useState, type DragEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, type DragEvent } from 'react';
 import { toast } from 'sonner';
 import {
   Upload,
@@ -1038,7 +1038,7 @@ export function ApplicantDocumentsPage() {
   // ── Data loading ──────────────────────────────────────────────────────────
 
   // Full load: shows skeleton. Used on mount and on tab-switch.
-  const load = () => {
+  const load = useCallback(() => {
     setLoading(true);
     Promise.allSettled([getDocuments(), getRequiredDocuments(), getDocumentRequests(), getCampers()])
       .then(([docsResult, reqResult, docReqResult, campersResult]) => {
@@ -1063,7 +1063,7 @@ export function ApplicantDocumentsPage() {
         }
       })
       .finally(() => setLoading(false));
-  };
+  }, []);
 
   // Silent targeted refresh of document requests only: no skeleton, no side-effects.
   // Called after upload/submit to ensure authoritative server state without racing against
@@ -1076,7 +1076,7 @@ export function ApplicantDocumentsPage() {
 
   useEffect(() => {
     load();
-  }, []);
+  }, [load]);
 
   // Refresh when the tab becomes visible again (cross-tab admin action, e.g. approve/reject).
   // NOTE: We intentionally do NOT listen to window.focus here. The native OS file-picker
@@ -1091,7 +1091,7 @@ export function ApplicantDocumentsPage() {
     return () => {
       document.removeEventListener('visibilitychange', onVisible);
     };
-  }, []);
+  }, [load]);
 
   // ── Handlers ──────────────────────────────────────────────────────────────
 

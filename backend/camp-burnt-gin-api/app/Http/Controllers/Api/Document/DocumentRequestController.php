@@ -639,12 +639,12 @@ class DocumentRequestController extends Controller
         $requests = DocumentRequest::with('requestedByAdmin', 'camper')
             ->where(function ($q) use ($user, $camperIds) {
                 $q->where('applicant_id', $user->id)
-                  ->orWhere(function ($inner) use ($camperIds) {
-                      // Catch requests linked only through the camper relationship
-                      // (e.g. admin created request without explicitly setting applicant_id).
-                      $inner->whereIn('camper_id', $camperIds)
+                    ->orWhere(function ($inner) use ($camperIds) {
+                        // Catch requests linked only through the camper relationship
+                        // (e.g. admin created request without explicitly setting applicant_id).
+                        $inner->whereIn('camper_id', $camperIds)
                             ->whereNull('applicant_id');
-                  });
+                    });
             })
             ->latest()
             ->get()
