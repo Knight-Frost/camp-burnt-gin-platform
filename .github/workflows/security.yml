@@ -38,7 +38,7 @@ jobs:
 
       - name: Run Composer security audit
         working-directory: backend/camp-burnt-gin-api
-        run: composer audit --format=plain
+        run: composer audit --locked --format=plain
 
   # ─── Node Dependency Audit ────────────────────────────────────────────────
   # pnpm audit reads pnpm-lock.yaml directly and queries the npm advisory
